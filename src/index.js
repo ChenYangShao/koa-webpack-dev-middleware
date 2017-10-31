@@ -19,14 +19,14 @@ function middleware(doIt, req, res) {
 module.exports = (compiler, option) => {
   const doIt = expressMiddleware(compiler, option);
 
-  function* koaMiddleware(next) {
+  async function koaMiddleware(next) {
     const ctx = this;
     const { req } = ctx;
     const locals = ctx.locals || ctx.state;
 
     ctx.webpack = doIt;
 
-    const runNext = yield middleware(doIt, req, {
+    const runNext = await middleware(doIt, req, {
       end(content) {
         ctx.body = content;
       },
@@ -37,12 +37,17 @@ module.exports = (compiler, option) => {
     });
 
     if (runNext) {
-      yield *next;
+      try {
+        await next();
+      } catch (err) {
+        ctx.body = {message: err.message}
+        ctx.status = err.status || 500
+      }
     }
   }
 
-  Object.keys(doIt).forEach(p => {
-    koaMiddleware[p] = doIt[p];
+  Object.keys(doIt).forEach(key => {
+    koaMiddleware[key] = doIt[key];
   });
 
   return koaMiddleware;
